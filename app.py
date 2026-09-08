@@ -64,24 +64,23 @@ if not GROQ_API_KEY:
 if not GROQ_API_KEY:
     GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
 
-# Helper function: Finds the best active non-Llama model on the account
+# Helper function: Finds the best active non-Llama model on your account
 def get_best_non_llama_model(client):
     preferred_non_llama = [
         "openai/gpt-oss-20b",
         "openai/gpt-oss-120b",
         "qwen/qwen3.6-27b",
-        "qwen/qwen3.8-27b",
-        "gemma2-9b-it",
-        "mixtral-8x7b-32768"
+        "qwen/qwen3.8-27b"
     ]
     try:
         available_models = [m.id for m in client.models.list().data]
         for model in preferred_non_llama:
             if model in available_models:
                 return model
-        # Fallback: first non-llama text model available
+        # Fallback: pick any text model that is NOT llama, whisper, or guard
         for m in available_models:
-            if "llama" not in m.lower() and "whisper" not in m.lower() and "guard" not in m.lower():
+            m_lower = m.lower()
+            if "llama" not in m_lower and "whisper" not in m_lower and "guard" not in m_lower:
                 return m
     except Exception:
         pass
@@ -92,18 +91,16 @@ def get_best_non_llama_model(client):
 # ---------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🧭 Career Road")
-    st.markdown("Your intelligent navigator for educational transitions, personalized roadmaps, and career growth.")
+    st.markdown("Your personalized career planning and guidance engine.")
     st.markdown("---")
     
-    st.markdown("#### 🎯 Supported Academic Stages:")
+    st.markdown("#### 🎯 Smart Level Adaptation:")
     st.markdown("""
-    - **Matric / 10th / O-Levels** (Selecting high school/intermediate tracks: ICS, Pre-Engineering, Pre-Medical, I.Com, Arts)
-    - **Intermediate / 12th / A-Levels** (University BS degrees, entry scope & requirements)
-    - **Undergraduate / BS** (Specializations, practical industry tracks & certifications)
-    - **Career Switcher / Self-Taught** (Fast transitions into Tech, Finance, or AI)
+    - **Matric / 10th:** Direct guidance on Intermediate groups (ICS, Pre-Eng, Pre-Med, I.Com).
+    - **Intermediate / 12th:** Direct guidance on University BS degrees and entry tests (does not repeat Matric).
+    - **BS / Graduation:** Direct guidance on industry roles, skills, and specializations (does not repeat earlier schooling).
     """)
     st.markdown("---")
-    st.markdown("Developed by Tajdar Khalil")
     st.caption("Engine: Non-Llama open architectures (`openai/gpt-oss-20b` / `qwen`)")
 
 # ---------------------------------------------------------
@@ -113,13 +110,13 @@ st.markdown("""
 <div class="hero-card">
     <div class="hero-title">🧭 Career Road: Smart AI Career Counseling & Roadmap</div>
     <div class="hero-subtitle">
-        Plan your next academic or career phase with actionable milestone roadmaps, degree pathways, career branching, and essential skill stacks.
+        Get tailored, step-by-step career counseling based strictly on your current academic milestone without irrelevant repetition.
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Form Section
+# Form Section - General suggestions in all input boxes
 # ---------------------------------------------------------
 with st.form("career_guidance_form"):
     st.markdown("### 📋 1. Academic & Experience Profile")
@@ -135,12 +132,13 @@ with st.form("career_guidance_form"):
                 "Graduated BS / Master's (Looking for Industry Entry / Specialization)",
                 "Non-traditional / Self-Learner / Career Switcher"
             ],
-            index=1
+            index=1,
+            help="Please select your current educational milestone."
         )
 
         current_field = st.text_input(
-            "Current Stream / Major / Subjects *",
-            placeholder="e.g., ICS, Pre-Engineering, Computer Science, Commerce, Bio-Sciences, etc."
+            "Current Education / Stream / Major *",
+            placeholder="Please enter your education"
         )
 
     with col2:
@@ -148,12 +146,12 @@ with st.form("career_guidance_form"):
             "Current Practical Skill Level *",
             options=["Beginner", "Intermediate", "Advanced"],
             value="Beginner",
-            help="Beginner: Foundations only. Intermediate: Can build independent projects. Advanced: System-level knowledge or ready for senior roles."
+            help="Beginner: Just starting. Intermediate: Can build projects. Advanced: System-level experience."
         )
 
         target_course = st.text_input(
-            "Specific Course or Degree You Are Thinking About (Optional)",
-            placeholder="e.g., BS Data Science, Cloud Computing, ACCA, AI Engineering, Full Stack Web Dev, or leave blank"
+            "Target Course or Degree (Optional)",
+            placeholder="Please enter the specific course or degree you are considering"
         )
 
     st.markdown("### 💡 2. Interests & Career Direction")
@@ -161,8 +159,8 @@ with st.form("career_guidance_form"):
 
     with col3:
         user_interests = st.text_area(
-            "What topics, hobbies, or domains excite you? (Leave blank if you have no clear interest)",
-            placeholder="e.g., I enjoy problem-solving and coding, or I prefer financial markets, or 'I have no specific interest yet, please suggest high-growth fields based on market trends.'",
+            "Interests, Hobbies, or Domains (Optional)",
+            placeholder="Please enter your interests or preferred fields",
             height=110
         )
 
@@ -171,7 +169,7 @@ with st.form("career_guidance_form"):
             "Counseling Mode",
             [
                 "I know my target direction (Provide deep roadmap & counseling)",
-                "I am unsure / have no fixed interest (Suggest top 3 high-growth career tracks and guide me)"
+                "I am unsure / have no fixed interest (Suggest top high-growth career tracks and guide me)"
             ],
             index=0 if user_interests.strip() else 1
         )
@@ -183,53 +181,82 @@ with st.form("career_guidance_form"):
 # ---------------------------------------------------------
 if submit_button:
     if not current_field.strip():
-        st.error("⚠️ Please specify your current stream or major (e.g., ICS, Pre-Engineering, BS Computer Science, etc.).")
+        st.error("⚠️ Please enter your education in the stream/major field.")
     elif GROQ_API_KEY == "YOUR_GROQ_API_KEY_HERE" or not GROQ_API_KEY:
         st.error("⚠️ Groq API key is missing. Set it in code or in Streamlit Secrets.")
     else:
-        with st.spinner("🤖 Analyzing your academic profile and preparing roadmap..."):
+        with st.spinner("🤖 Analyzing your profile and building your stage-specific roadmap..."):
             try:
                 client = Groq(api_key=GROQ_API_KEY)
                 selected_model = get_best_non_llama_model(client)
 
-                system_prompt = """
-You are a career counselor and technical industry mentor with deep knowledge of education structures (Matriculation, Intermediate/FSc/ICS, and Bachelor's degrees) as well as global tech and business markets.
-Your goal is to provide realistic, empathetic, and actionable career guidance.
-Structure your response cleanly using Markdown headings, bold keywords, and bullet points.
+                # Strict stage routing rules
+                if "Matric" in education_stage:
+                    stage_instruction = """
+STAGE INSTRUCTION: The user has completed Matric / 10th / O-Levels.
+- Focus STRICTLY on the next immediate step: Choosing an Intermediate group (e.g., ICS, FSc Pre-Engineering, FSc Pre-Medical, I.Com, FA, or Technical Diplomas).
+- Detail the subjects, future university options each group unlocks, and which intermediate group best matches their profile.
+- DO NOT skip ahead to senior industry certifications yet; focus on laying strong academic foundations in Intermediate.
+"""
+                elif "Intermediate" in education_stage:
+                    stage_instruction = """
+STAGE INSTRUCTION: The user has completed Intermediate / FSc / ICS / A-Levels.
+- DO NOT start over from Matric. DO NOT discuss Intermediate groups (they already passed that).
+- Focus STRICTLY on what to do after Intermediate: Selecting university BS degrees (e.g., BS Computer Science, BS Software Engineering, BS Data Science, BBA/BS Finance, Engineering disciplines, etc.).
+- Discuss university entrance exams, merit criteria, and high-demand university programs.
+"""
+                elif "BS" in education_stage or "Bachelor" in education_stage:
+                    stage_instruction = """
+STAGE INSTRUCTION: The user is in or has graduated from a BS / Bachelor's degree.
+- DO NOT start over from Matric or Intermediate. That is past history.
+- Focus STRICTLY on post-BS transitions: Career specializations, job market roles, building an industry-ready portfolio/GitHub, internships, relevant professional certifications, and postgraduate paths (MS/MPhil) if needed.
+"""
+                else:
+                    stage_instruction = """
+STAGE INSTRUCTION: The user is a career switcher or non-traditional learner.
+- Focus strictly on industry readiness, hands-on portfolio projects, skill bridges, and immediate market entry without traditional school schooling requirements.
+"""
+
+                system_prompt = f"""
+You are an expert career counselor and academic mentor.
+{stage_instruction}
+
+CRITICAL RULES:
+1. Always respect the user's current milestone. NEVER start over from a milestone the user has already passed.
+2. Structure your response cleanly using aesthetic Markdown headers, bold highlights, and actionable lists.
+3. If the user provided no specific interest or is unsure, provide 3 well-explained career paths emerging directly from their current stage.
 """
 
                 user_prompt = f"""
 User Profile:
 - Academic Milestone: {education_stage}
-- Current Stream / Subjects: {current_field}
-- Skill Level: {skill_level}
-- Target Course/Degree Under Consideration: {target_course if target_course.strip() else "None specified"}
+- Current Education / Major: {current_field}
+- Practical Skill Level: {skill_level}
+- Target Course/Degree Under Consideration: {target_course if target_course.strip() else "None specified (Suggest the best fit)"}
 - Interests: {user_interests if user_interests.strip() else "No clear interest specified. Needs recommendation."}
 - Counseling Mode: {preference_mode}
 
-Please provide a detailed Career Guide covering:
+Please provide a structured Career Road Guide containing:
 
-1. **Immediate Academic Milestone Counseling**:
-   - If after Matric: Recommend best intermediate groups (ICS, FSc Pre-Eng, Pre-Med, I.Com) and why.
-   - If after Intermediate: Recommend top university BS degrees (Computer Science, Data Science, AI, Business Analytics, Finance) and prerequisites.
-   - If during/after BS: Recommend industry specializations and job market readiness.
-   - If they mentioned a specific course ({target_course if target_course.strip() else 'N/A'}), evaluate its current market value.
+### 1. 🎓 Next Immediate Path & Counseling (Starting directly from their current stage)
+- Address their current stage directly without repeating completed schooling.
+- If they mentioned a specific target course/degree ({target_course if target_course.strip() else 'N/A'}), evaluate its industry demand and suitability.
 
-2. **Career Branches & Emergent Paths**:
-   - Present 3-4 distinct career options branching from their stage.
-   - If they have no clear interests, highlight why each option is high-growth and what a day in that role looks like.
+### 2. 🔀 Recommended Career Branches & Emergent Tracks
+- Provide 3 distinct forward-looking paths emerging from their current point.
+- Detail what daily work looks like in each field and the career growth potential.
 
-3. **Phase-by-Phase Roadmap (Tailored for {skill_level} Level)**:
-   - Phase 1: Core Foundations (Months 1-3)
-   - Phase 2: Hands-on Projects & Practical Skills (Months 4-6)
-   - Phase 3: Specialization, Portfolio & Industry Entry (Months 7+)
+### 3. 🗺️ Step-by-Step Roadmap (Tailored for {skill_level} Level)
+- Phase 1: Core Foundations (Months 1-3)
+- Phase 2: Hands-on Projects & Practical Skills (Months 4-6)
+- Phase 3: Specialization, Portfolio & Market Entry (Months 7+)
 
-4. **Essential Tech Stack & Free Learning Resources**:
-   - Must-learn languages, frameworks, or tools.
-   - Recommended high-quality free learning platforms, documentation, and YouTube channels.
+### 4. 🛠️ Tech Stack, Tools & Free Learning Resources
+- Recommended tools, software, or programming languages relevant to their next steps.
+- High-quality free learning resources (documentation, YouTube channels, practice sites).
 
-5. **7-Day Action Plan**:
-   - 3 to 5 realistic tasks they should execute this week to begin.
+### 5. 🎯 7-Day Action Plan
+- 3 to 5 concrete tasks to get started this upcoming week.
 """
 
                 chat_completion = client.chat.completions.create(
