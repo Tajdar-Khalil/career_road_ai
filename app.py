@@ -1,6 +1,5 @@
 import streamlit as st
 import os
-import json
 from groq import Groq
 
 # ---------------------------------------------------------
@@ -13,17 +12,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Professional Modern CSS Styling
 st.markdown("""
 <style>
-    /* Global Styles */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
     
-    /* Hero Banner */
     .hero-card {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
         border: 1px solid #334155;
@@ -48,31 +44,15 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Input Card Container */
     .stTextInput > div > div > input, .stTextArea textarea, .stSelectbox > div > div {
         border-radius: 10px !important;
-    }
-    
-    /* Highlight Cards */
-    .metric-badge {
-        display: inline-block;
-        padding: 6px 14px;
-        background: rgba(56, 189, 248, 0.12);
-        color: #38bdf8;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-right: 8px;
-        margin-bottom: 8px;
-        border: 1px solid rgba(56, 189, 248, 0.25);
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Groq API Configuration
+# Groq API Configuration (Key in code/secrets, never on screen)
 # ---------------------------------------------------------
-# Set your free Groq API key here or via Streamlit Cloud Secrets (st.secrets["GROQ_API_KEY"])
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 if not GROQ_API_KEY:
     try:
@@ -80,28 +60,51 @@ if not GROQ_API_KEY:
     except Exception:
         GROQ_API_KEY = ""
 
-# If not found in environment or secrets, fallback to your hardcoded key placeholder
+# Fallback: paste your key directly if not using environment variables
 if not GROQ_API_KEY:
-    # REPLACE WITH YOUR ACTUAL GROQ API KEY IF HARDCODING IN CODE
     GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
 
+# Helper function: Finds the best active non-Llama model on the account
+def get_best_non_llama_model(client):
+    preferred_non_llama = [
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b",
+        "qwen/qwen3.8-27b",
+        "gemma2-9b-it",
+        "mixtral-8x7b-32768"
+    ]
+    try:
+        available_models = [m.id for m in client.models.list().data]
+        for model in preferred_non_llama:
+            if model in available_models:
+                return model
+        # Fallback: first non-llama text model available
+        for m in available_models:
+            if "llama" not in m.lower() and "whisper" not in m.lower() and "guard" not in m.lower():
+                return m
+    except Exception:
+        pass
+    return "openai/gpt-oss-20b"
+
 # ---------------------------------------------------------
-# Sidebar - About & User Guidance
+# Sidebar
 # ---------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🧭 Career Road")
-    st.markdown("Your personalized navigation engine for academic transitions, career roadmaps, and skills acceleration.")
+    st.markdown("Your intelligent navigator for educational transitions, personalized roadmaps, and career growth.")
     st.markdown("---")
     
     st.markdown("#### 🎯 Supported Academic Stages:")
     st.markdown("""
-    - **Matric / O-Levels / 10th** (Choosing intermediate tracks: Pre-Engineering, Pre-Medical, ICS, I.Com, Arts)
-    - **Intermediate / FSc / FA / A-Levels** (University degrees & entry strategies)
-    - **BS / Undergraduate** (Career specializations, industry certifications & graduate roadmap)
-    - **Self-Learner / Career Switcher**
+    - **Matric / 10th / O-Levels** (Selecting high school/intermediate tracks: ICS, Pre-Engineering, Pre-Medical, I.Com, Arts)
+    - **Intermediate / 12th / A-Levels** (University BS degrees, entry scope & requirements)
+    - **Undergraduate / BS** (Specializations, practical industry tracks & certifications)
+    - **Career Switcher / Self-Taught** (Fast transitions into Tech, Finance, or AI)
     """)
     st.markdown("---")
-    st.caption("Powered by **Groq Llama-3.3-70b-versatile** (Ultra-fast & free tier).")
+    st.markdown("Developed by Tajdar Khalil")
+    st.caption("Engine: Non-Llama open architectures (`openai/gpt-oss-20b` / `qwen`)")
 
 # ---------------------------------------------------------
 # Hero Banner
@@ -110,16 +113,16 @@ st.markdown("""
 <div class="hero-card">
     <div class="hero-title">🧭 Career Road: Smart AI Career Counseling & Roadmap</div>
     <div class="hero-subtitle">
-        Whether you just completed Matric/O-Levels, Intermediate/FSc, or your BS degree, get tailored career exploration, degree pathway advice, milestone-based roadmaps, and essential technical stacks.
+        Plan your next academic or career phase with actionable milestone roadmaps, degree pathways, career branching, and essential skill stacks.
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Form Section - Clean Multi-column Layout
+# Form Section
 # ---------------------------------------------------------
 with st.form("career_guidance_form"):
-    st.markdown("### 📋 1. Your Academic & Experience Profile")
+    st.markdown("### 📋 1. Academic & Experience Profile")
     col1, col2 = st.columns([1, 1])
 
     with col1:
@@ -137,7 +140,7 @@ with st.form("career_guidance_form"):
 
         current_field = st.text_input(
             "Current Stream / Major / Subjects *",
-            placeholder="e.g., Computer Science, Pre-Engineering, ICS, Commerce, Bio-Sciences, etc."
+            placeholder="e.g., ICS, Pre-Engineering, Computer Science, Commerce, Bio-Sciences, etc."
         )
 
     with col2:
@@ -145,7 +148,7 @@ with st.form("career_guidance_form"):
             "Current Practical Skill Level *",
             options=["Beginner", "Intermediate", "Advanced"],
             value="Beginner",
-            help="Beginner: Just starting or foundational concepts. Intermediate: Can build small projects. Advanced: Working on complex systems or ready for senior roles."
+            help="Beginner: Foundations only. Intermediate: Can build independent projects. Advanced: System-level knowledge or ready for senior roles."
         )
 
         target_course = st.text_input(
@@ -159,15 +162,15 @@ with st.form("career_guidance_form"):
     with col3:
         user_interests = st.text_area(
             "What topics, hobbies, or domains excite you? (Leave blank if you have no clear interest)",
-            placeholder="e.g., I enjoy problem-solving and coding, or I prefer creative design, or I want high-paying remote roles, or 'I have no specific interest yet, please suggest based on market demand.'",
+            placeholder="e.g., I enjoy problem-solving and coding, or I prefer financial markets, or 'I have no specific interest yet, please suggest high-growth fields based on market trends.'",
             height=110
         )
 
     with col4:
         preference_mode = st.radio(
-            "Career Exploration Mode",
+            "Counseling Mode",
             [
-                "I know my target direction (Give me a deep roadmap & counseling)",
+                "I know my target direction (Provide deep roadmap & counseling)",
                 "I am unsure / have no fixed interest (Suggest top 3 high-growth career tracks and guide me)"
             ],
             index=0 if user_interests.strip() else 1
@@ -176,80 +179,80 @@ with st.form("career_guidance_form"):
     submit_button = st.form_submit_button("Generate Personalized Career Guide & Roadmap 🚀", type="primary", use_container_width=True)
 
 # ---------------------------------------------------------
-# AI Generation & Groq Engine Execution
+# AI Generation Execution
 # ---------------------------------------------------------
 if submit_button:
     if not current_field.strip():
         st.error("⚠️ Please specify your current stream or major (e.g., ICS, Pre-Engineering, BS Computer Science, etc.).")
     elif GROQ_API_KEY == "YOUR_GROQ_API_KEY_HERE" or not GROQ_API_KEY:
-        st.error("⚠️ Please insert your valid Groq API Key in the code or configure it under Streamlit Secrets.")
+        st.error("⚠️ Groq API key is missing. Set it in code or in Streamlit Secrets.")
     else:
-        with st.spinner("🤖 Analyzing your academic stage, calculating career trajectories, and preparing roadmap..."):
+        with st.spinner("🤖 Analyzing your academic profile and preparing roadmap..."):
             try:
                 client = Groq(api_key=GROQ_API_KEY)
+                selected_model = get_best_non_llama_model(client)
 
-                # Prompt crafted specifically for academic stage transitions (Matric -> Inter -> BS -> Industry)
                 system_prompt = """
-You are a distinguished career counselor, academic advisor, and technical industry mentor with deep knowledge of education systems (including Matric, Intermediate/FSc/ICS, BS degrees, and modern global job markets).
-Your role is to offer empathetic, practical, and highly actionable career guidance.
-
-Provide output structured with clear, aesthetic Markdown headers, bullet points, and tables where suitable.
+You are a career counselor and technical industry mentor with deep knowledge of education structures (Matriculation, Intermediate/FSc/ICS, and Bachelor's degrees) as well as global tech and business markets.
+Your goal is to provide realistic, empathetic, and actionable career guidance.
+Structure your response cleanly using Markdown headings, bold keywords, and bullet points.
 """
 
                 user_prompt = f"""
-Student / Professional Profile:
-- **Academic Milestone**: {education_stage}
-- **Current Stream / Major**: {current_field}
-- **Current Skill Level**: {skill_level}
-- **Course / Degree they are considering**: {target_course if target_course.strip() else "None specified"}
-- **Interests / Aspirations**: {user_interests if user_interests.strip() else "No specific interest mentioned. The user needs career discovery and suggestions."}
-- **Exploration Mode**: {preference_mode}
+User Profile:
+- Academic Milestone: {education_stage}
+- Current Stream / Subjects: {current_field}
+- Skill Level: {skill_level}
+- Target Course/Degree Under Consideration: {target_course if target_course.strip() else "None specified"}
+- Interests: {user_interests if user_interests.strip() else "No clear interest specified. Needs recommendation."}
+- Counseling Mode: {preference_mode}
 
-Please generate a comprehensive, highly structured Career Road Guide covering:
+Please provide a detailed Career Guide covering:
 
-### 1. 🎓 Next Immediate Academic / Career Milestone
-- Explain what they should do next depending on whether they finished Matric (recommend suitable Intermediate groups like ICS, Pre-Eng, etc.), Intermediate (recommend top BS degree options, merit requirements, and career scope), or BS (industry tracks, internships, certifications).
-- Analyze the specific course/degree they are thinking of ({target_course if target_course.strip() else 'N/A'}) and give realistic feedback on its industry value and suitability.
+1. **Immediate Academic Milestone Counseling**:
+   - If after Matric: Recommend best intermediate groups (ICS, FSc Pre-Eng, Pre-Med, I.Com) and why.
+   - If after Intermediate: Recommend top university BS degrees (Computer Science, Data Science, AI, Business Analytics, Finance) and prerequisites.
+   - If during/after BS: Recommend industry specializations and job market readiness.
+   - If they mentioned a specific course ({target_course if target_course.strip() else 'N/A'}), evaluate its current market value.
 
-### 2. 🔀 Recommended Career Branches & Emergent Paths
-- Provide 3 to 4 distinct modern career paths branching from their background (e.g., Technical / Software / AI, Analytical / Business / Finance, or Specialized).
-- If the user has no clear interest, highlight why each suggested path is lucrative and what daily work looks like.
+2. **Career Branches & Emergent Paths**:
+   - Present 3-4 distinct career options branching from their stage.
+   - If they have no clear interests, highlight why each option is high-growth and what a day in that role looks like.
 
-### 3. 🗺️ Step-by-Step Phase Roadmap (Tuned to {skill_level} Level)
-- **Phase 1: Foundations (Months 1-3)**: Core fundamentals to master at their current level.
-- **Phase 2: Applied Skills & Mini-Projects (Months 4-6)**: Concrete deliverables and hands-on practice.
-- **Phase 3: Portfolio, Certifications & Real-World Entry (Months 7+)**: Industry preparation, GitHub/portfolio building, and job/internship readiness.
+3. **Phase-by-Phase Roadmap (Tailored for {skill_level} Level)**:
+   - Phase 1: Core Foundations (Months 1-3)
+   - Phase 2: Hands-on Projects & Practical Skills (Months 4-6)
+   - Phase 3: Specialization, Portfolio & Industry Entry (Months 7+)
 
-### 4. 🛠️ Tech Stack & Essential Tools
-- A clear breakdown of Languages, Software/Frameworks, and Free Learning Resources (YouTube channels, documentation, practice platforms).
+4. **Essential Tech Stack & Free Learning Resources**:
+   - Must-learn languages, frameworks, or tools.
+   - Recommended high-quality free learning platforms, documentation, and YouTube channels.
 
-### 5. 🎯 7-Day Quick Start Challenge
-- Concrete, actionable checklist of 3-5 tasks they should complete this upcoming week to kickstart their journey.
+5. **7-Day Action Plan**:
+   - 3 to 5 realistic tasks they should execute this week to begin.
 """
 
-                # Using llama-3.3-70b-versatile: free, robust, and state-of-the-art on Groq
                 chat_completion = client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    model="llama-3.3-70b-versatile",
+                    model=selected_model,
                     temperature=0.6,
                     max_tokens=2500
                 )
 
                 response_text = chat_completion.choices[0].message.content
 
-                st.success("🎉 Your Career Road Blueprint is Ready!")
+                st.success(f"🎉 Your Career Road Blueprint is Ready! (Generated with `{selected_model}`)")
                 st.markdown(response_text)
 
-                # Option to download guide
                 st.download_button(
                     label="📥 Download Career Guide as Markdown",
                     data=response_text,
-                    file_name=f"career_road_guide_{skill_level.lower()}.md",
+                    file_name="career_road_guide.md",
                     mime="text/markdown"
                 )
 
             except Exception as e:
-                st.error(f"Error generating career roadmap: {str(e)}")
+                st.error(f"Error generating roadmap: {str(e)}")
