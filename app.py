@@ -77,7 +77,6 @@ def get_best_non_llama_model(client):
         for model in preferred_non_llama:
             if model in available_models:
                 return model
-        # Fallback: pick any text model that is NOT llama, whisper, or guard
         for m in available_models:
             m_lower = m.lower()
             if "llama" not in m_lower and "whisper" not in m_lower and "guard" not in m_lower:
@@ -97,8 +96,8 @@ with st.sidebar:
     st.markdown("#### 🎯 Smart Level Adaptation:")
     st.markdown("""
     - **Matric / 10th:** Direct guidance on Intermediate groups (ICS, Pre-Eng, Pre-Med, I.Com).
-    - **Intermediate / 12th:** Direct guidance on University BS degrees and entry tests (does not repeat Matric).
-    - **BS / Graduation:** Direct guidance on industry roles, skills, and specializations (does not repeat earlier schooling).
+    - **Intermediate / 12th:** Direct guidance on University BS degrees and entry tests.
+    - **Undergraduate / BS:** Direct guidance on industry roles, skills, and specializations.
     """)
     st.markdown("---")
     st.caption("Engine: Non-Llama open architectures (`openai/gpt-oss-20b` / `qwen`)")
@@ -116,24 +115,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Form Section - General suggestions in all input boxes
+# Form Section - Clean, concise options & general suggestions
 # ---------------------------------------------------------
 with st.form("career_guidance_form"):
     st.markdown("### 📋 1. Academic & Experience Profile")
     col1, col2 = st.columns([1, 1])
 
     with col1:
+        # Clean, concise academic stage choices
         education_stage = st.selectbox(
-            "Current Academic Stage / Milestone *",
+            "Current Academic Stage *",
             options=[
-                "Completed Matric / 10th / O-Levels (Planning Intermediate / High School)",
-                "Completed Intermediate / FSc / ICS / A-Levels (Planning University / BS)",
-                "Currently Pursuing BS / Bachelor's Degree",
-                "Graduated BS / Master's (Looking for Industry Entry / Specialization)",
-                "Non-traditional / Self-Learner / Career Switcher"
+                "Matric / 10th / O-Levels",
+                "Intermediate / 12th / A-Levels",
+                "Undergraduate (Enrolled in BS)",
+                "Graduate (BS / Master's Completed)",
+                "Career Switcher / Self-Taught"
             ],
             index=1,
-            help="Please select your current educational milestone."
+            help="Select your current or most recently completed milestone."
         )
 
         current_field = st.text_input(
@@ -193,28 +193,34 @@ if submit_button:
                 # Strict stage routing rules
                 if "Matric" in education_stage:
                     stage_instruction = """
-STAGE INSTRUCTION: The user has completed Matric / 10th / O-Levels.
+STAGE INSTRUCTION: The user is at the Matric / 10th / O-Levels milestone.
 - Focus STRICTLY on the next immediate step: Choosing an Intermediate group (e.g., ICS, FSc Pre-Engineering, FSc Pre-Medical, I.Com, FA, or Technical Diplomas).
-- Detail the subjects, future university options each group unlocks, and which intermediate group best matches their profile.
+- Detail the core subjects, the university degrees each group unlocks, and which intermediate group fits their profile.
 - DO NOT skip ahead to senior industry certifications yet; focus on laying strong academic foundations in Intermediate.
 """
                 elif "Intermediate" in education_stage:
                     stage_instruction = """
-STAGE INSTRUCTION: The user has completed Intermediate / FSc / ICS / A-Levels.
-- DO NOT start over from Matric. DO NOT discuss Intermediate groups (they already passed that).
-- Focus STRICTLY on what to do after Intermediate: Selecting university BS degrees (e.g., BS Computer Science, BS Software Engineering, BS Data Science, BBA/BS Finance, Engineering disciplines, etc.).
+STAGE INSTRUCTION: The user is at the Intermediate / 12th / A-Levels milestone.
+- DO NOT start over from Matric. DO NOT recommend Intermediate groups (they are already past that).
+- Focus STRICTLY on what to do after Intermediate: Choosing university BS degrees (e.g., BS Computer Science, BS Software Engineering, BS Data Science, BBA/BS Finance, Engineering disciplines, etc.).
 - Discuss university entrance exams, merit criteria, and high-demand university programs.
 """
-                elif "BS" in education_stage or "Bachelor" in education_stage:
+                elif "Undergraduate" in education_stage:
                     stage_instruction = """
-STAGE INSTRUCTION: The user is in or has graduated from a BS / Bachelor's degree.
+STAGE INSTRUCTION: The user is currently enrolled in an Undergraduate (BS) degree.
 - DO NOT start over from Matric or Intermediate. That is past history.
-- Focus STRICTLY on post-BS transitions: Career specializations, job market roles, building an industry-ready portfolio/GitHub, internships, relevant professional certifications, and postgraduate paths (MS/MPhil) if needed.
+- Focus STRICTLY on: Semester-wise skill building, choosing high-impact electives, building real-world projects/GitHub, landing internships, and preparing for final-year projects and post-graduation job markets.
+"""
+                elif "Graduate" in education_stage:
+                    stage_instruction = """
+STAGE INSTRUCTION: The user has completed their BS / Master's degree.
+- DO NOT start over from school milestones.
+- Focus STRICTLY on: Direct job market entry, industry roles, technical portfolio readiness, high-value professional certifications, and postgraduate paths (MS/MPhil/Abroad) if applicable.
 """
                 else:
                     stage_instruction = """
-STAGE INSTRUCTION: The user is a career switcher or non-traditional learner.
-- Focus strictly on industry readiness, hands-on portfolio projects, skill bridges, and immediate market entry without traditional school schooling requirements.
+STAGE INSTRUCTION: The user is a career switcher or self-taught learner.
+- Focus strictly on industry skills, practical project portfolios, skill bridges, and immediate market entry without traditional schooling prerequisites.
 """
 
                 system_prompt = f"""
